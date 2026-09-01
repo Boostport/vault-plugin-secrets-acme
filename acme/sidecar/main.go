@@ -125,7 +125,7 @@ func (p tlsALPN01Provider) Listen(addr string) error {
 	tlsConfig := &tls.Config{
 		NextProtos: []string{"acme-tls/1"},
 		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			path := fmt.Sprintf("challenges/tls-alpn-01/%s", hello.ServerName)
+			path := fmt.Sprintf("challenges/tls-alpn-01/%s", extractAddressFromReverse(hello.ServerName))
 
 			s, err := p.client.Read(path)
 			if err != nil {
@@ -163,4 +163,54 @@ func (p tlsALPN01Provider) Listen(addr string) error {
 	}()
 
 	return nil
+}
+
+const (
+	ip4arpa = ".in-addr.arpa"
+	ip6arpa = ".ip6.arpa"
+)
+
+func reverse(slice []string) string {
+	for i := range len(slice) / 2 {
+		j := len(slice) - i - 1
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+	ip := net.ParseIP(strings.Join(slice, ".")).To4()
+	if ip == nil {
+		return ""
+	}
+	return ip.String()
+}
+
+func reverse6(slice []string) string {
+	for i := range len(slice) / 2 {
+		j := len(slice) - i - 1
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+	var slice6 []string
+	for i := range len(slice) / 4 {
+		slice6 = append(slice6, strings.Join(slice[i*4:i*4+4], ""))
+	}
+	ip := net.ParseIP(strings.Join(slice6, ":")).To16()
+	if ip == nil {
+		return ""
+	}
+	return ip.String()
+}
+
+func extractAddressFromReverse(reverseName string) string {
+	f := reverse
+	var search string
+	switch {
+	case strings.HasSuffix(reverseName, ip4arpa):
+		search = strings.TrimSuffix(reverseName, ip4arpa)
+	case strings.HasSuffix(reverseName, ip6arpa):
+		search = strings.TrimSuffix(reverseName, ip6arpa)
+		f = reverse6
+	default:
+		return reverseName
+	}
+
+	// Reverse the segments and then combine them.
+	return f(strings.Split(search, "."))
 }

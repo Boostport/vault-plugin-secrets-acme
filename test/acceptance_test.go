@@ -17,6 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	pebbleHTTPSACMEServerURL = os.Getenv("PEBBLE_HTTPS_ACME_SERVER_URL")
+	challTestSrvDNSServer    = os.Getenv("CHALLTESTSRV_DNS_SERVER")
+)
+
 func TestVault(t *testing.T) {
 	if err := os.Setenv("LEGO_CA_CERTIFICATES", "./certs/pebble.minica.pem"); err != nil {
 		t.Fatal(err)
@@ -105,7 +110,7 @@ func TestVault(t *testing.T) {
 		"acme/accounts/lenstra",
 		map[string]interface{}{
 			"contact":                 "rem@lenstra.fr",
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"terms_of_service_agreed": true,
 			"provider":                "exec",
 		},
@@ -117,10 +122,10 @@ func TestVault(t *testing.T) {
 		"acme/accounts/lenstra",
 		map[string]interface{}{
 			"contact":                 "remi@lenstra.fr",
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"terms_of_service_agreed": true,
 			"provider":                "exec",
-			"dns_resolvers":           []string{"127.0.0.1:8053"},
+			"dns_resolvers":           []string{challTestSrvDNSServer},
 			"ignore_dns_propagation":  true,
 		},
 	)

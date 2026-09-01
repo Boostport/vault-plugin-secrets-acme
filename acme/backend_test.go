@@ -3,15 +3,20 @@ package acme
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Boostport/vault-plugin-secrets-acme/acme/sidecar"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	pebbleHTTPSACMEServerURL        = os.Getenv("PEBBLE_HTTPS_ACME_SERVER_URL")
+	challTestSrvDNSServer           = os.Getenv("CHALLTESTSRV_DNS_SERVER")
+	challTestSrvManagementInterface = os.Getenv("CHALLTESTSRV_MANAGEMENT_INTERFACE")
 )
 
 func TestValidateNames(t *testing.T) {
@@ -102,7 +107,7 @@ func TestValidateNames(t *testing.T) {
 }
 
 func getTestConfig(t *testing.T) (*logical.BackendConfig, logical.Backend) {
-	wd, err := os.Getwd()
+	/*wd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +149,7 @@ func getTestConfig(t *testing.T) (*logical.BackendConfig, logical.Backend) {
 		}
 		challtestsrv.Process.Wait()
 	})
-	time.Sleep(1 * time.Second)
+	time.Sleep(1 * time.Second)*/
 
 	config := logical.TestBackendConfig()
 	config.StorageView = &logical.InmemStorage{}
@@ -156,17 +161,34 @@ func getTestConfig(t *testing.T) (*logical.BackendConfig, logical.Backend) {
 	return config, b
 }
 
+func getFirstLocalIP() (net.IP, error) {
+	addresses, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, addr := range addresses {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP, nil
+			}
+		}
+	}
+
+	return net.IPv4(127, 0, 0, 1), nil
+}
+
 func createAccount(t *testing.T, b logical.Backend, storage logical.Storage) {
 	req := &logical.Request{
 		Operation: logical.CreateOperation,
 		Path:      "accounts/lenstra",
 		Storage:   storage,
 		Data: map[string]interface{}{
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
 			"provider":                "exec",
-			"dns_resolvers":           []string{"127.0.0.1:8053"},
+			"dns_resolvers":           []string{challTestSrvDNSServer},
 			"ignore_dns_propagation":  true,
 		},
 	}
@@ -187,15 +209,16 @@ func createRole(t *testing.T, b logical.Backend, storage logical.Storage) {
 	makeRequest(t, b, req, "")
 }
 
-func createXipRole(t *testing.T, b logical.Backend, storage logical.Storage) {
+func createXipRole(t *testing.T, b logical.Backend, storage logical.Storage, ip net.IP) {
 	req := &logical.Request{
 		Operation: logical.CreateOperation,
 		Path:      "roles/xip.io",
 		Storage:   storage,
 		Data: map[string]interface{}{
-			"account":          "lenstra",
-			"allow_subdomains": true,
-			"allowed_domains":  []string{"xip.io"},
+			"account":            "lenstra",
+			"allow_subdomains":   true,
+			"allow_bare_domains": true,
+			"allowed_domains":    []string{ip.String()},
 		},
 	}
 	makeRequest(t, b, req, "")
@@ -209,7 +232,7 @@ func TestNoChallenge(t *testing.T) {
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
 		Data: map[string]interface{}{
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
 		},
@@ -252,7 +275,7 @@ func TestHTTP01Challenge(t *testing.T) {
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
 		Data: map[string]interface{}{
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
 			"enable_http_01":          true,
@@ -260,20 +283,28 @@ func TestHTTP01Challenge(t *testing.T) {
 	}
 	makeRequest(t, b, req, "")
 
-	createXipRole(t, b, config.StorageView)
+	ip, err := getFirstLocalIP()
+	if err != nil {
+		t.Fatalf("Failed to get first local IP: %s", err)
+	}
+
+	createXipRole(t, b, config.StorageView, ip)
 
 	mockClient := sidecar.NewMockClient(b, config.StorageView)
 	provider := sidecar.NewHTTP01Provider(mockClient, b.Logger())
 
 	// pebble uses the 5002 port
-	go provider.Listen(":5002")
+	err = provider.Listen(":5002")
+	if err != nil {
+		t.Fatalf("Failed to start HTTP01 provider: %s", err)
+	}
 
 	req = &logical.Request{
 		Operation: logical.CreateOperation,
 		Path:      "certs/xip.io",
 		Storage:   config.StorageView,
 		Data: map[string]interface{}{
-			"common_name": "127.0.0.1.xip.io",
+			"common_name": ip.String(),
 		},
 	}
 	makeRequest(t, b, req, "")
@@ -287,7 +318,7 @@ func TestTLSALPN01Challenge(t *testing.T) {
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
 		Data: map[string]interface{}{
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
 			"enable_tls_alpn_01":      true,
@@ -295,20 +326,28 @@ func TestTLSALPN01Challenge(t *testing.T) {
 	}
 	makeRequest(t, b, req, "")
 
-	createXipRole(t, b, config.StorageView)
+	ip, err := getFirstLocalIP()
+	if err != nil {
+		t.Fatalf("Failed to get first local IP: %s", err)
+	}
+
+	createXipRole(t, b, config.StorageView, ip)
 
 	mockClient := sidecar.NewMockClient(b, config.StorageView)
 	provider := sidecar.NewTLSALPN01Provider(mockClient, b.Logger())
 
 	// pebble uses the 5001 port
-	go provider.Listen(":5001")
+	err = provider.Listen(":5001")
+	if err != nil {
+		t.Fatalf("Failed to start TLSALPN01 provider: %s", err)
+	}
 
 	req = &logical.Request{
 		Operation: logical.CreateOperation,
 		Path:      "certs/xip.io",
 		Storage:   config.StorageView,
 		Data: map[string]interface{}{
-			"common_name": "127.0.0.1.xip.io",
+			"common_name": ip.String(),
 		},
 	}
 	makeRequest(t, b, req, "")

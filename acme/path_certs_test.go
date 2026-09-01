@@ -39,11 +39,11 @@ func TestExplicitProviderConfiguration(t *testing.T) {
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
 		Data: map[string]interface{}{
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
 			"provider":                "exec",
-			"dns_resolvers":           []string{"127.0.0.1:8053"},
+			"dns_resolvers":           []string{challTestSrvDNSServer},
 			"provider_configuration": map[string]string{
 				// We use a bad configuration on purpose so we get a failure
 				// when requesting a certificate instead of the success we got
@@ -131,6 +131,7 @@ func checkRevokeCert(t *testing.T, b logical.Backend, storage logical.Storage, f
 	if a == nil {
 		t.Fatal("Account should have been found")
 	}
+
 	client, err := a.getClient()
 	if err != nil {
 		t.Fatal(err)

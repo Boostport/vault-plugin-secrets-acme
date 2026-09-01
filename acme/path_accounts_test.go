@@ -11,22 +11,22 @@ func TestAccounts(t *testing.T) {
 	config, b := getTestConfig(t)
 
 	data := map[string]interface{}{
-		"server_url":              "https://localhost:14000/dir",
+		"server_url":              pebbleHTTPSACMEServerURL,
 		"contact":                 "remi@lenstra.fr",
 		"terms_of_service_agreed": true,
 		"provider":                "exec",
-		"dns_resolvers":           []string{"127.0.0.1:8053"},
+		"dns_resolvers":           []string{challTestSrvDNSServer},
 	}
 	expected := map[string]interface{}{
 		"contact":                 "remi@lenstra.fr",
-		"server_url":              "https://localhost:14000/dir",
+		"server_url":              pebbleHTTPSACMEServerURL,
 		"terms_of_service_agreed": true,
 		"provider":                "exec",
 		"provider_configuration":  map[string]string{},
 		"key_type":                "EC256",
 		"enable_http_01":          false,
 		"enable_tls_alpn_01":      false,
-		"dns_resolvers":           []string{"127.0.0.1:8053"},
+		"dns_resolvers":           []string{challTestSrvDNSServer},
 		"ignore_dns_propagation":  false,
 	}
 
@@ -110,7 +110,7 @@ func TestUpdateAccount(t *testing.T) {
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
 		Data: map[string]interface{}{
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "rem@lenstra.fr",
 			"terms_of_service_agreed": true,
 			"provider":                "exec",
@@ -132,7 +132,7 @@ func TestDeleteAccount(t *testing.T) {
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
 		Data: map[string]interface{}{
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
 			"provider":                "exec",
@@ -164,7 +164,7 @@ func TestListAccounts(t *testing.T) {
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
 		Data: map[string]interface{}{
-			"server_url":              "https://localhost:14000/dir",
+			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
 			"provider":                "exec",

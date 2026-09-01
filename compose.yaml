@@ -1,0 +1,39 @@
+services:
+  test:
+    image: golang:${GO_VERSION}
+    command: go test -coverprofile c.out -v -race ./acme
+    environment:
+      CHALLTESTSRV_DNS_SERVER: "challtestsrv:8053"
+      CHALLTESTSRV_MANAGEMENT_INTERFACE: "http://challtestsrv:8055"
+      EXEC_PATH: /source/test/test_dns.sh
+      LEGO_CA_CERTIFICATES: /source/test/certs/pebble.minica.pem
+      PEBBLE_HTTPS_ACME_SERVER_URL: "https://pebble:14000/dir"
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "TEST_VAULT_TOKEN"
+    working_dir: /source
+    ports:
+      - "5002:5002"
+    volumes:
+      - .:/source
+      - $GOPATH/pkg/mod/cache:/go/pkg/mod/cache
+    depends_on:
+      - challtestsrv
+      - pebble
+
+  challtestsrv:
+    image: ghcr.io/letsencrypt/pebble-challtestsrv:2.10.0
+    command: -http01 "" -https01 "" -tlsalpn01 ""
+    ports:
+      - "8055:8055"
+
+  pebble:
+    image: ghcr.io/letsencrypt/pebble:2.10.0
+    command: -dnsserver challtestsrv:8053 -config /test/config/pebble-config.json
+    environment:
+      PEBBLE_VA_NOSLEEP: 1
+      EXEC_PROPAGATION_TIMEOUT: 5
+    ports:
+      - "14000:14000"
+      - "15000:15000"
+    volumes:
+      - ./test/:/test/
