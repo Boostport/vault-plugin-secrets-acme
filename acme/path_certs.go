@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-acme/lego/v4/certcrypto"
-	"github.com/go-acme/lego/v4/certificate"
+	"github.com/go-acme/lego/v5/certcrypto"
+	"github.com/go-acme/lego/v5/certificate"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -120,7 +120,7 @@ func getCacheKey(r *role, data *framework.FieldData) (string, error) {
 		return "", fmt.Errorf("failed to marshall role: %v", err)
 	}
 
-	d := make(map[string]interface{})
+	d := make(map[string]any)
 	for key := range data.Schema {
 		d[key] = data.Get(key)
 	}
@@ -147,8 +147,8 @@ func (b *backend) getSecret(accountPath, cacheKey string, cert *certificate.Reso
 	notAfter := certs[0].NotAfter
 
 	s := b.Secret(secretCertType).Response(
-		map[string]interface{}{
-			"domain":      cert.Domain,
+		map[string]any{
+			"domains":     cert.Domains,
 			"url":         cert.CertStableURL,
 			"private_key": string(cert.PrivateKey),
 			"cert":        string(cert.Certificate),
@@ -157,7 +157,7 @@ func (b *backend) getSecret(accountPath, cacheKey string, cert *certificate.Reso
 			"not_after":   notAfter.String(),
 		},
 		// this will be used when revoking the certificate
-		map[string]interface{}{
+		map[string]any{
 			"account":   accountPath,
 			"cert":      string(cert.Certificate),
 			"url":       cert.CertStableURL,

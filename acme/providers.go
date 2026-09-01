@@ -37,9 +37,9 @@ func newVaultTLSALPN01Provider(ctx context.Context, logger log.Logger, req *logi
 	}
 }
 
-func (p vaultProvider) Present(domain, token, keyAuth string) error {
+func (p vaultProvider) Present(_ context.Context, domain, token, keyAuth string) error {
 	path := p.getPath(domain, token, keyAuth)
-	storageEntry, err := logical.StorageEntryJSON(path, map[string]interface{}{
+	storageEntry, err := logical.StorageEntryJSON(path, map[string]any{
 		"domain": domain,
 		"key":    keyAuth,
 	})
@@ -50,7 +50,7 @@ func (p vaultProvider) Present(domain, token, keyAuth string) error {
 	return p.storage.Put(p.ctx, storageEntry)
 }
 
-func (p vaultProvider) CleanUp(domain, token, keyAuth string) error {
+func (p vaultProvider) CleanUp(_ context.Context, domain, token, keyAuth string) error {
 	path := p.getPath(domain, token, keyAuth)
 	p.logger.Debug("Deleting token", "path", path)
 	return p.storage.Delete(p.ctx, path)

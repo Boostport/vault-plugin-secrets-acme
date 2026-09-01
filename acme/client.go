@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/go-acme/lego/v4/certificate"
-	"github.com/go-acme/lego/v4/challenge/dns01"
-	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/providers/dns"
+	"github.com/go-acme/lego/v5/certcrypto"
+	"github.com/go-acme/lego/v5/certificate"
+	"github.com/go-acme/lego/v5/challenge/dns01"
+	"github.com/go-acme/lego/v5/lego"
+	"github.com/go-acme/lego/v5/providers/dns"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -27,9 +28,10 @@ func getCertFromACMEProvider(ctx context.Context, logger log.Logger, req *logica
 	request := certificate.ObtainRequest{
 		Domains: names,
 		Bundle:  true,
+		KeyType: certcrypto.KeyType(a.KeyType),
 	}
 
-	return client.Certificate.Obtain(request)
+	return client.Certificate.Obtain(ctx, request)
 }
 
 func setupChallengeProviders(ctx context.Context, logger log.Logger, client *lego.Client, a *account, req *logical.Request) error {
@@ -49,10 +51,14 @@ func setupChallengeProviders(ctx context.Context, logger log.Logger, client *leg
 			return err
 		}
 
+		if len(a.DNSResolvers) > 0 {
+			opts := &dns01.Options{RecursiveNameservers: a.DNSResolvers}
+			dns01.SetDefaultClient(dns01.NewClient(opts))
+		}
+
 		err = client.Challenge.SetDNS01Provider(
 			provider,
-			dns01.CondOption(len(a.DNSResolvers) > 0, dns01.AddRecursiveNameservers(a.DNSResolvers)),
-			dns01.CondOption(a.IgnoreDNSPropagation, dns01.DisableAuthoritativeNssPropagationRequirement()),
+			dns01.CondOptions(a.IgnoreDNSPropagation, dns01.DisableAuthoritativeNssPropagationRequirement()),
 		)
 		if err != nil {
 			return err

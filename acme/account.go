@@ -6,15 +6,15 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 
-	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/registration"
+	"github.com/go-acme/lego/v5/acme"
+	"github.com/go-acme/lego/v5/lego"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
 type account struct {
 	Email                 string
-	Registration          *registration.Resource
-	Key                   crypto.PrivateKey
+	Registration          *acme.ExtendedAccount
+	Key                   crypto.Signer
 	KeyType               string
 	ServerURL             string
 	Provider              string
@@ -31,13 +31,13 @@ func (a *account) GetEmail() string {
 	return a.Email
 }
 
-// GetRegistration returns the Email of the user
-func (a *account) GetRegistration() *registration.Resource {
+// GetRegistration returns the Registration of the user
+func (a *account) GetRegistration() *acme.ExtendedAccount {
 	return a.Registration
 }
 
 // GetPrivateKey returns the private key of the user
-func (a *account) GetPrivateKey() crypto.PrivateKey {
+func (a *account) GetPrivateKey() crypto.Signer {
 	return a.Key
 }
 
@@ -56,7 +56,7 @@ func getAccount(ctx context.Context, storage logical.Storage, path string) (*acc
 	if storageEntry == nil {
 		return nil, nil
 	}
-	var d map[string]interface{}
+	var d map[string]any
 	if err = storageEntry.DecodeJSON(&d); err != nil {
 		return nil, err
 	}
@@ -68,16 +68,16 @@ func getAccount(ctx context.Context, storage logical.Storage, path string) (*acc
 	}
 
 	providerConfiguration := map[string]string{}
-	for k, v := range d["provider_configuration"].(map[string]interface{}) {
+	for k, v := range d["provider_configuration"].(map[string]any) {
 		providerConfiguration[k] = v.(string)
 	}
 
 	a := &account{
 		Email:   d["contact"].(string),
-		Key:     privateKey,
+		Key:     privateKey.(crypto.Signer),
 		KeyType: d["key_type"].(string),
-		Registration: &registration.Resource{
-			URI: d["registration_uri"].(string),
+		Registration: &acme.ExtendedAccount{
+			Location: d["registration_uri"].(string),
 		},
 		ServerURL:             d["server_url"].(string),
 		Provider:              d["provider"].(string),
@@ -91,8 +91,8 @@ func getAccount(ctx context.Context, storage logical.Storage, path string) (*acc
 		a.IgnoreDNSPropagation = ignoreDNSPropagation.(bool)
 	}
 
-	a.DNSResolvers = make([]string, len(d["dns_resolvers"].([]interface{})))
-	for i, resolver := range d["dns_resolvers"].([]interface{}) {
+	a.DNSResolvers = make([]string, len(d["dns_resolvers"].([]any)))
+	for i, resolver := range d["dns_resolvers"].([]any) {
 		a.DNSResolvers[i] = resolver.(string)
 	}
 
@@ -106,9 +106,9 @@ func (a *account) save(ctx context.Context, storage logical.Storage, path string
 	}
 	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: x509Encoded})
 
-	storageEntry, err := logical.StorageEntryJSON(path, map[string]interface{}{
+	storageEntry, err := logical.StorageEntryJSON(path, map[string]any{
 		"server_url":              serverURL,
-		"registration_uri":        a.Registration.URI,
+		"registration_uri":        a.Registration.Location,
 		"contact":                 a.GetEmail(),
 		"terms_of_service_agreed": a.TermsOfServiceAgreed,
 		"private_key":             string(pemEncoded),

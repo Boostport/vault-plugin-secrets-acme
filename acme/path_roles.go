@@ -96,7 +96,7 @@ func (b *backend) roleRead(ctx context.Context, req *logical.Request, _ *framewo
 	}
 
 	return &logical.Response{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"account":            r.Account,
 			"allowed_domains":    r.AllowedDomains,
 			"allow_bare_domains": r.AllowBareDomains,
@@ -138,7 +138,7 @@ func getRole(ctx context.Context, storage logical.Storage, path string) (*role, 
 		return nil, nil
 	}
 
-	var d map[string]interface{}
+	var d map[string]any
 	err = storageEntry.DecodeJSON(&d)
 	if err != nil {
 		return nil, err
@@ -154,7 +154,7 @@ func getRole(ctx context.Context, storage logical.Storage, path string) (*role, 
 }
 
 func (r *role) save(ctx context.Context, storage logical.Storage, path string) error {
-	var data map[string]interface{}
+	var data map[string]any
 	err := mapstructure.Decode(r, &data)
 	if err != nil {
 		return err

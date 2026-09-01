@@ -10,14 +10,14 @@ import (
 func TestAccounts(t *testing.T) {
 	config, b := getTestConfig(t)
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"server_url":              pebbleHTTPSACMEServerURL,
 		"contact":                 "remi@lenstra.fr",
 		"terms_of_service_agreed": true,
 		"provider":                "exec",
 		"dns_resolvers":           []string{challTestSrvDNSServer},
 	}
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"contact":                 "remi@lenstra.fr",
 		"server_url":              pebbleHTTPSACMEServerURL,
 		"terms_of_service_agreed": true,
@@ -109,7 +109,7 @@ func TestUpdateAccount(t *testing.T) {
 		Operation: logical.CreateOperation,
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "rem@lenstra.fr",
 			"terms_of_service_agreed": true,
@@ -131,7 +131,7 @@ func TestDeleteAccount(t *testing.T) {
 		Operation: logical.CreateOperation,
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
@@ -157,13 +157,13 @@ func TestListAccounts(t *testing.T) {
 		Storage:   config.StorageView,
 	}
 	listResp := makeRequest(t, b, listReq, "")
-	require.Equal(t, map[string]interface{}{}, listResp.Data)
+	require.Equal(t, map[string]any{}, listResp.Data)
 
 	createReq := &logical.Request{
 		Operation: logical.CreateOperation,
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
@@ -173,7 +173,7 @@ func TestListAccounts(t *testing.T) {
 	makeRequest(t, b, createReq, "")
 
 	listResp = makeRequest(t, b, listReq, "")
-	require.Equal(t, map[string]interface{}{
+	require.Equal(t, map[string]any{
 		"keys": []string{"lenstra"},
 	}, listResp.Data)
 }

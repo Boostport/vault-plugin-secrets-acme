@@ -14,9 +14,8 @@ import (
 )
 
 var (
-	pebbleHTTPSACMEServerURL        = os.Getenv("PEBBLE_HTTPS_ACME_SERVER_URL")
-	challTestSrvDNSServer           = os.Getenv("CHALLTESTSRV_DNS_SERVER")
-	challTestSrvManagementInterface = os.Getenv("CHALLTESTSRV_MANAGEMENT_INTERFACE")
+	pebbleHTTPSACMEServerURL = os.Getenv("PEBBLE_HTTPS_ACME_SERVER_URL")
+	challTestSrvDNSServer    = os.Getenv("CHALLTESTSRV_DNS_SERVER")
 )
 
 func TestValidateNames(t *testing.T) {
@@ -107,50 +106,6 @@ func TestValidateNames(t *testing.T) {
 }
 
 func getTestConfig(t *testing.T) (*logical.BackendConfig, logical.Backend) {
-	/*wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = os.Setenv("EXEC_PROPAGATION_TIMEOUT", "5"); err != nil {
-		t.Fatal(err)
-	}
-	if err = os.Setenv("EXEC_PATH", wd+"/../test/test_dns.sh"); err != nil {
-		t.Fatal(err)
-	}
-	if err = os.Setenv("LEGO_CA_CERTIFICATES", wd+"/../test/certs/pebble.minica.pem"); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Setenv("PEBBLE_VA_NOSLEEP", "1"); err != nil {
-		t.Fatal(err)
-	}
-
-	peeble := exec.Command("pebble", "-dnsserver", "127.0.0.1:8053", "-config", "../test/config/pebble-config.json")
-	peeble.Stdout = os.Stdout
-	peeble.Stderr = os.Stderr
-	if err := peeble.Start(); err != nil {
-		t.Fatalf("failed to start pebble: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := peeble.Process.Kill(); err != nil {
-			t.Fatal(err)
-		}
-		peeble.Process.Wait()
-	})
-
-	challtestsrv := exec.Command("pebble-challtestsrv", "-http01", "", "-https01", "", "-tlsalpn01", "")
-	challtestsrv.Stdout = os.Stdout
-	challtestsrv.Stderr = os.Stderr
-	if err := challtestsrv.Start(); err != nil {
-		t.Fatalf("failed to start pebble-challtestsrv: %s", err)
-	}
-	t.Cleanup(func() {
-		if err := challtestsrv.Process.Kill(); err != nil {
-			t.Fatal(err)
-		}
-		challtestsrv.Process.Wait()
-	})
-	time.Sleep(1 * time.Second)*/
-
 	config := logical.TestBackendConfig()
 	config.StorageView = &logical.InmemStorage{}
 	b, err := Factory("test")(context.Background(), config)
@@ -183,7 +138,7 @@ func createAccount(t *testing.T, b logical.Backend, storage logical.Storage) {
 		Operation: logical.CreateOperation,
 		Path:      "accounts/lenstra",
 		Storage:   storage,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
@@ -200,7 +155,7 @@ func createRole(t *testing.T, b logical.Backend, storage logical.Storage) {
 		Operation: logical.CreateOperation,
 		Path:      "roles/lenstra.fr",
 		Storage:   storage,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"account":          "lenstra",
 			"allow_subdomains": true,
 			"allowed_domains":  []string{"lenstra.fr"},
@@ -214,7 +169,7 @@ func createXipRole(t *testing.T, b logical.Backend, storage logical.Storage, ip 
 		Operation: logical.CreateOperation,
 		Path:      "roles/xip.io",
 		Storage:   storage,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"account":            "lenstra",
 			"allow_subdomains":   true,
 			"allow_bare_domains": true,
@@ -231,7 +186,7 @@ func TestNoChallenge(t *testing.T) {
 		Operation: logical.CreateOperation,
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
@@ -245,7 +200,7 @@ func TestNoChallenge(t *testing.T) {
 		Operation: logical.CreateOperation,
 		Path:      "certs/lenstra.fr",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"common_name": "sentry.lenstra.fr",
 		},
 	}
@@ -254,8 +209,8 @@ func TestNoChallenge(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Did not get error")
 	}
-	if !strings.Contains(err.Error(), "acme: could not determine solvers") {
-		t.Fatalf("Error did not contain 'acme: could not determine solvers'")
+	if !strings.Contains(err.Error(), "prober: could not determine solvers") {
+		t.Fatalf("Error did not contain 'prober: could not determine solvers'")
 	}
 	if resp == nil {
 		t.Fatalf("Did not get response")
@@ -263,7 +218,7 @@ func TestNoChallenge(t *testing.T) {
 	if !resp.IsError() {
 		t.Fatalf("Did not get error")
 	}
-	expected := "Failed to validate certificate signing request: error: one or more domains had a problem:\n[sentry.lenstra.fr] [sentry.lenstra.fr] acme: could not determine solvers\n"
+	expected := "Failed to validate certificate signing request: resolver: one or more domains had a problem: [sentry.lenstra.fr: prober: could not determine solvers]"
 	require.Equal(t, expected, resp.Error().Error())
 }
 
@@ -274,7 +229,7 @@ func TestHTTP01Challenge(t *testing.T) {
 		Operation: logical.CreateOperation,
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
@@ -303,7 +258,7 @@ func TestHTTP01Challenge(t *testing.T) {
 		Operation: logical.CreateOperation,
 		Path:      "certs/xip.io",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"common_name": ip.String(),
 		},
 	}
@@ -317,7 +272,7 @@ func TestTLSALPN01Challenge(t *testing.T) {
 		Operation: logical.CreateOperation,
 		Path:      "accounts/lenstra",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"server_url":              pebbleHTTPSACMEServerURL,
 			"contact":                 "remi@lenstra.fr",
 			"terms_of_service_agreed": true,
@@ -346,7 +301,7 @@ func TestTLSALPN01Challenge(t *testing.T) {
 		Operation: logical.CreateOperation,
 		Path:      "certs/xip.io",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"common_name": ip.String(),
 		},
 	}
@@ -360,29 +315,29 @@ func TestRoles(t *testing.T) {
 	// Test creating roles
 	testCases := []struct {
 		Path             string
-		RequestData      map[string]interface{}
-		ExpectedResponse map[string]interface{}
+		RequestData      map[string]any
+		ExpectedResponse map[string]any
 		Error            string
 	}{
 		{
-			RequestData:      map[string]interface{}{"account": "lenstra"},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false},
+			RequestData:      map[string]any{"account": "lenstra"},
+			ExpectedResponse: map[string]any{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false},
 		},
 		{
-			RequestData:      map[string]interface{}{"account": "lenstra", "allowed_domains": "sentry.lenstra.fr"},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{"sentry.lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": false},
+			RequestData:      map[string]any{"account": "lenstra", "allowed_domains": "sentry.lenstra.fr"},
+			ExpectedResponse: map[string]any{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": false, "allowed_domains": []string{"sentry.lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": false},
 		},
 		{
-			RequestData:      map[string]interface{}{"account": "lenstra", "allow_bare_domains": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": true, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false},
+			RequestData:      map[string]any{"account": "lenstra", "allow_bare_domains": true},
+			ExpectedResponse: map[string]any{"account": "lenstra", "allow_bare_domains": true, "allow_subdomains": false, "allowed_domains": []string{}, "cache_for_ratio": 70, "disable_cache": false},
 		},
 		{
-			RequestData:      map[string]interface{}{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50, "disable_cache": false},
+			RequestData:      map[string]any{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50},
+			ExpectedResponse: map[string]any{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 50, "disable_cache": false},
 		},
 		{
-			RequestData:      map[string]interface{}{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "disable_cache": true},
-			ExpectedResponse: map[string]interface{}{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": true},
+			RequestData:      map[string]any{"account": "lenstra", "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "disable_cache": true},
+			ExpectedResponse: map[string]any{"account": "lenstra", "allow_bare_domains": false, "allow_subdomains": true, "allowed_domains": []string{"lenstra.fr"}, "cache_for_ratio": 70, "disable_cache": true},
 		},
 	}
 	for _, tcase := range testCases {
@@ -400,7 +355,7 @@ func TestRoles(t *testing.T) {
 		Operation: logical.CreateOperation,
 		Path:      "roles/lenstra.fr",
 		Storage:   config.StorageView,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"account":          "lenstra",
 			"allow_subdomains": true,
 			"allowed_domains":  []string{"lenstra.fr"},
@@ -418,7 +373,7 @@ func TestRoles(t *testing.T) {
 	require.Equal(
 		t,
 		resp.Data,
-		map[string]interface{}{
+		map[string]any{
 			"account":            "lenstra",
 			"allow_bare_domains": false,
 			"allow_subdomains":   true,
