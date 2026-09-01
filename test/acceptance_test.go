@@ -89,7 +89,7 @@ func TestVault(t *testing.T) {
 
 	_, err = logical.Write(
 		"sys/plugins/catalog/secret/acme",
-		map[string]interface{}{
+		map[string]any{
 			"sha256":  fmt.Sprintf("%x", sum),
 			"command": "vault-plugin-secrets-acme",
 		},
@@ -99,7 +99,7 @@ func TestVault(t *testing.T) {
 	// Enable the ACME secret engine
 	_, err = logical.Write(
 		"sys/mounts/acme",
-		map[string]interface{}{
+		map[string]any{
 			"type": "acme",
 		},
 	)
@@ -108,7 +108,7 @@ func TestVault(t *testing.T) {
 	// Create an account
 	created, err := logical.Write(
 		"acme/accounts/lenstra",
-		map[string]interface{}{
+		map[string]any{
 			"contact":                 "rem@lenstra.fr",
 			"server_url":              pebbleHTTPSACMEServerURL,
 			"terms_of_service_agreed": true,
@@ -120,7 +120,7 @@ func TestVault(t *testing.T) {
 	// Update the account
 	updated, err := logical.Write(
 		"acme/accounts/lenstra",
-		map[string]interface{}{
+		map[string]any{
 			"contact":                 "remi@lenstra.fr",
 			"server_url":              pebbleHTTPSACMEServerURL,
 			"terms_of_service_agreed": true,
@@ -136,7 +136,7 @@ func TestVault(t *testing.T) {
 	// Create a role
 	_, err = logical.Write(
 		"acme/roles/lenstra.fr",
-		map[string]interface{}{
+		map[string]any{
 			"account":            "lenstra",
 			"allowed_domains":    "lenstra.fr",
 			"allow_bare_domains": false,
@@ -148,7 +148,7 @@ func TestVault(t *testing.T) {
 	// Request a certificate
 	_, err = logical.Write(
 		"acme/certs/lenstra.fr",
-		map[string]interface{}{
+		map[string]any{
 			"common_name": "www.lenstra.fr",
 		},
 	)
@@ -157,7 +157,7 @@ func TestVault(t *testing.T) {
 	// Request another certificate and revoke it
 	secret, err := logical.Write(
 		"acme/certs/lenstra.fr",
-		map[string]interface{}{
+		map[string]any{
 			"common_name": "lease.lenstra.fr",
 		},
 	)
@@ -168,7 +168,7 @@ func TestVault(t *testing.T) {
 
 	_, err = logical.Write(
 		"sys/leases/revoke",
-		map[string]interface{}{
+		map[string]any{
 			"lease_id": secret.LeaseID,
 		},
 	)
@@ -179,7 +179,7 @@ func TestVault(t *testing.T) {
 	// Getting a new cert should not take it from the cache
 	secret, err = logical.Write(
 		"acme/certs/lenstra.fr",
-		map[string]interface{}{
+		map[string]any{
 			"common_name": "lease.lenstra.fr",
 		},
 	)
@@ -196,7 +196,7 @@ func getCertificateStatus(t *testing.T, url string) string {
 	resp, err := http.Get(url)
 	require.NoError(t, err)
 
-	var data map[string]interface{}
+	var data map[string]any
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	err = json.Unmarshal(b, &data)

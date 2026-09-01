@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-acme/lego/v4/certcrypto"
-	"github.com/go-acme/lego/v4/certificate"
+	"github.com/go-acme/lego/v5/certcrypto"
+	"github.com/go-acme/lego/v5/certificate"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -29,7 +29,7 @@ type CacheEntry struct {
 
 	// We have to copy all fields of the cert here as the []byte ones are not
 	// exported in certificate.Resource
-	Domain            string
+	Domains           []string
 	CertURL           string
 	CertStableURL     string
 	PrivateKey        []byte
@@ -42,7 +42,7 @@ func NewCacheEntry(account string, cert *certificate.Resource) *CacheEntry {
 	return &CacheEntry{
 		Users:             1,
 		Account:           account,
-		Domain:            cert.Domain,
+		Domains:           cert.Domains,
 		CertURL:           cert.CertURL,
 		CertStableURL:     cert.CertStableURL,
 		PrivateKey:        cert.PrivateKey,
@@ -54,7 +54,7 @@ func NewCacheEntry(account string, cert *certificate.Resource) *CacheEntry {
 
 func (ce *CacheEntry) Certificate() *certificate.Resource {
 	return &certificate.Resource{
-		Domain:            ce.Domain,
+		Domains:           ce.Domains,
 		CertURL:           ce.CertURL,
 		CertStableURL:     ce.CertStableURL,
 		PrivateKey:        ce.PrivateKey,

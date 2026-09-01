@@ -35,7 +35,7 @@ func (b *backend) cacheRead(ctx context.Context, req *logical.Request, _ *framew
 	}
 
 	return &logical.Response{
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"cached_certs": len(keys),
 		},
 	}, nil

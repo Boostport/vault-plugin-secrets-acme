@@ -36,7 +36,7 @@ func (b *backend) challengeHTTP01Read(ctx context.Context, req *logical.Request,
 		return logical.ErrorResponse("failed to find a token"), nil
 	}
 
-	var d map[string]interface{}
+	var d map[string]any
 	err = storageEntry.DecodeJSON(&d)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode storage entry: %v", err)
