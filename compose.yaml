@@ -1,7 +1,7 @@
 services:
   test:
     image: golang:${GO_VERSION}
-    command: go test -coverprofile c.out -v -race ./acme
+    command: go test -coverprofile c.out -v -race ./...
     environment:
       CHALLTESTSRV_DNS_SERVER: "challtestsrv:8053"
       CHALLTESTSRV_MANAGEMENT_INTERFACE: "http://challtestsrv:8055"
