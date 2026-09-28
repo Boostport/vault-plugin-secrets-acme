@@ -58,38 +58,54 @@ func (b *backend) certRevoke(ctx context.Context, req *logical.Request, _ *frame
 		return nil, err
 	}
 
-	ce.Users--
-	if ce.Users > 0 {
-		err = ce.Save(ctx, req.Storage, cacheKey)
-		if err != nil {
-			return nil, err
+	if ce != nil {
+		ce.Users--
+		if ce.Users > 0 {
+			err = ce.Save(ctx, req.Storage, cacheKey)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// If the last user asked for the lease to be terminated we revoke the cert
+			b.Logger().Debug("Removing cached cert", "key", cacheKey)
+			err = b.cache.Delete(ctx, req.Storage, cacheKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to remove cache entry: %v", err)
+			}
+			b.Logger().Debug("Revoking cert for cached entry", "key", cacheKey)
+			err = revokeACMECertificate(ctx, req)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
-		// If the last user asked for the lease to be terminated we revoke the cert
-		b.Logger().Debug("Removing cached cert", "key", cacheKey)
-		err = b.cache.Delete(ctx, req.Storage, cacheKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to remove cache entry: %v", err)
-		}
-
-		accountPath := req.Secret.InternalData["account"].(string)
-		a, err := getAccount(ctx, req.Storage, accountPath)
+		b.Logger().Debug("Revoking cert for uncached entry")
+		err = revokeACMECertificate(ctx, req)
 		if err != nil {
 			return nil, err
-		}
-		if a == nil {
-			return nil, fmt.Errorf("error while revoking certificate: user not found")
-		}
-		client, err := a.getClient()
-		if err != nil {
-			return logical.ErrorResponse("Failed to get LEGO client."), err
-		}
-		cert := req.Secret.InternalData["cert"].(string)
-		err = client.Certificate.Revoke(ctx, []byte(cert))
-		if err != nil {
-			return nil, fmt.Errorf("failed to revoke cert: %v", err)
 		}
 	}
 
 	return nil, nil
+}
+
+func revokeACMECertificate(ctx context.Context, req *logical.Request) error {
+	accountPath := req.Secret.InternalData["account"].(string)
+	a, err := getAccount(ctx, req.Storage, accountPath)
+	if err != nil {
+		return err
+	}
+	if a == nil {
+		return fmt.Errorf("error while revoking certificate: user not found")
+	}
+	client, err := a.getClient()
+	if err != nil {
+		return fmt.Errorf("failed to get LEGO client: %v", err)
+	}
+	cert := req.Secret.InternalData["cert"].(string)
+	err = client.Certificate.Revoke(ctx, []byte(cert))
+	if err != nil {
+		return fmt.Errorf("failed to revoke cert: %v", err)
+	}
+	return nil
 }
